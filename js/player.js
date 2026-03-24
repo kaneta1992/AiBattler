@@ -40,15 +40,21 @@ function updatePlayerLobby(players, showAbilities) {
         var div = document.createElement('div');
         div.className = 'player-lobby-item';
 
-        var icon = '🎮';
-        if (p.playerType === 'host') icon = '👑';
-        else if (p.playerType === 'npc') icon = '🤖';
-
-        var iconSpan = document.createElement('span');
-        iconSpan.textContent = icon + ' ';
+        // バッジ (ホストと同じ表示形式)
+        var badge = document.createElement('span');
+        badge.className = 'badge';
+        if (p.playerType === 'host') {
+            badge.textContent = '👑ホスト';
+            badge.classList.add('badge-host');
+        } else if (p.playerType === 'npc') {
+            badge.textContent = '🤖NPC';
+            badge.classList.add('badge-npc');
+        } else {
+            badge.textContent = '🎮';
+        }
 
         var nameSpan = document.createElement('strong');
-        nameSpan.textContent = p.name;
+        nameSpan.textContent = ' ' + p.name;
 
         // 自分のキャラにバッジ表示
         if (selectedChar && p.name === selectedChar.name && p.playerType === 'player') {
@@ -59,7 +65,7 @@ function updatePlayerLobby(players, showAbilities) {
             nameSpan.appendChild(youBadge);
         }
 
-        div.appendChild(iconSpan);
+        div.appendChild(badge);
         div.appendChild(nameSpan);
 
         if (showAbilities && p.ability) {

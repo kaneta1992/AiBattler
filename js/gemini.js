@@ -10,7 +10,14 @@ async function callGeminiAPI(apiKey, prompt) {
             'Content-Type': 'application/json',
             'x-goog-api-key': apiKey
         },
-        body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] })
+        body: JSON.stringify({
+            contents: [{ parts: [{ text: prompt }] }],
+            generationConfig: {
+                temperature: 1.0,
+                maxOutputTokens: 2048,
+                thinkingConfig: { thinkingBudget: 0 }
+            }
+        })
     });
     if (!response.ok) throw new Error('API通信エラー');
     const data = await response.json();
