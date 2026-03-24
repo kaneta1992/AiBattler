@@ -1,7 +1,7 @@
 // Gemini API通信モジュール
 // モデルやエンドポイントの変更はここだけ修正すればOK
 
-const GEMINI_API_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-lite-preview:generateContent';
+const GEMINI_API_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent';
 
 async function callGeminiAPI(apiKey, prompt) {
     const response = await fetch(GEMINI_API_URL, {
