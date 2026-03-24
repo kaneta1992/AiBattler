@@ -1,121 +1,204 @@
-// 共通変数・画面切り替え・キャラクター管理
+// ==========================================
+//  共通: 状態管理・画面切り替え・キャラクター管理
+// ==========================================
 
-let peer = null;
-let isHost = false;
-let characters = [];
-let selectedChar = null;
+// --- グローバル状態 ---
+var App = {
+    peer: null,
+    isHost: false,
+    characters: [],
+    selectedChar: null,
+};
 
-// --- 画面切り替え ---
+// ==========================================
+//  画面切り替え
+// ==========================================
+
 function startHostMode() {
     document.getElementById('mode-selection').classList.add('hidden');
     document.getElementById('host-view').classList.remove('hidden');
-    isHost = true;
+    App.isHost = true;
     document.getElementById('api-key').value = localStorage.getItem('gemini_api_key') || '';
-    loadCharacters();
-    refreshHostCharacterList();
-    initHost();
+    CharacterManager.load();
+    Host.refreshCharacterList();
+    Host.init();
 }
 
 function startPlayerMode() {
     document.getElementById('mode-selection').classList.add('hidden');
     document.getElementById('player-view').classList.remove('hidden');
-    isHost = false;
-    loadCharacters();
-    refreshPlayerCharacterList();
+    App.isHost = false;
+    CharacterManager.load();
+    Player.refreshCharacterList();
 }
 
-// --- キャラクター管理 (共通) ---
-function loadCharacters() {
-    characters = JSON.parse(localStorage.getItem('ai_battler_chars')) || [];
-}
+// ==========================================
+//  キャラクター管理 (共通)
+// ==========================================
 
-function saveCharacters() {
-    localStorage.setItem('ai_battler_chars', JSON.stringify(characters));
-}
+var CharacterManager = {
+    STORAGE_KEY: 'ai_battler_chars',
+    MAX_NAME_LENGTH: 30,
+    MAX_ABILITY_LENGTH: 100,
 
-function createCharacterFromInput(nameInputId, abilityInputId, callback) {
-    const nameEl = document.getElementById(nameInputId);
-    const abilityEl = document.getElementById(abilityInputId);
-    const name = nameEl.value.trim();
-    const ability = abilityEl.value.trim();
-    if (!name || !ability) return alert('名前と能力を入力してください');
-    const char = { id: Date.now(), name, ability };
-    characters.push(char);
-    saveCharacters();
-    nameEl.value = '';
-    abilityEl.value = '';
-    if (callback) callback(char);
-}
+    load: function () {
+        try {
+            App.characters = JSON.parse(localStorage.getItem(this.STORAGE_KEY)) || [];
+        } catch (e) {
+            App.characters = [];
+        }
+    },
 
-function deleteCharacter(charId) {
-    characters = characters.filter(c => c.id !== charId);
-    if (selectedChar && selectedChar.id === charId) {
-        selectedChar = null;
-    }
-    saveCharacters();
-}
+    save: function () {
+        localStorage.setItem(this.STORAGE_KEY, JSON.stringify(App.characters));
+    },
 
-function renderCharacterList(containerId, options) {
-    options = options || {};
-    const list = document.getElementById(containerId);
-    if (!list) return;
-    list.innerHTML = '';
+    /**
+     * 入力フォームからキャラクターを作成して保存
+     * @param {string} nameInputId   名前の input 要素 ID
+     * @param {string} abilityInputId 能力の textarea 要素 ID
+     * @param {Function} callback    作成後のコールバック
+     */
+    createFromInput: function (nameInputId, abilityInputId, callback) {
+        var nameEl = document.getElementById(nameInputId);
+        var abilityEl = document.getElementById(abilityInputId);
+        var name = nameEl.value.trim().slice(0, this.MAX_NAME_LENGTH);
+        var ability = abilityEl.value.trim().slice(0, this.MAX_ABILITY_LENGTH);
 
-    if (characters.length === 0) {
-        const p = document.createElement('p');
-        p.style.cssText = 'color: #999; margin: 0; padding: 10px;';
+        if (!name || !ability) {
+            return alert('名前と能力を入力してください');
+        }
+
+        var char = { id: Date.now(), name: name, ability: ability };
+        App.characters.push(char);
+        this.save();
+        nameEl.value = '';
+        abilityEl.value = '';
+        if (callback) callback(char);
+    },
+
+    remove: function (charId) {
+        App.characters = App.characters.filter(function (c) { return c.id !== charId; });
+        if (App.selectedChar && App.selectedChar.id === charId) {
+            App.selectedChar = null;
+        }
+        this.save();
+    },
+};
+
+// ==========================================
+//  キャラクターリスト描画 (共通)
+// ==========================================
+
+/**
+ * キャラクターカードのリストを描画する
+ * @param {string} containerId  コンテナ要素 ID
+ * @param {Object} opts         オプション
+ *  - selectedNameId {string}  選択名を表示する要素 ID
+ *  - defaultText    {string}  未選択時のテキスト
+ *  - allowDeselect  {boolean} 再クリックで選択解除するか
+ *  - onSelect       {Function(char)} 選択時コールバック
+ *  - onDelete       {Function(char)} 削除時コールバック
+ */
+function renderCharacterList(containerId, opts) {
+    opts = opts || {};
+    var container = document.getElementById(containerId);
+    if (!container) return;
+    container.innerHTML = '';
+
+    if (App.characters.length === 0) {
+        var p = document.createElement('p');
+        p.className = 'empty-message';
         p.textContent = 'キャラクターがまだ作成されていません。';
-        list.appendChild(p);
+        container.appendChild(p);
         return;
     }
 
-    characters.forEach(function(char) {
-        const div = document.createElement('div');
-        div.className = 'character-card' + (selectedChar && selectedChar.id === char.id ? ' selected' : '');
+    App.characters.forEach(function (char) {
+        var card = document.createElement('div');
+        var isSelected = App.selectedChar && App.selectedChar.id === char.id;
+        card.className = 'character-card' + (isSelected ? ' selected' : '');
 
-        const info = document.createElement('div');
-        info.style.flex = '1';
-        const nameEl = document.createElement('strong');
+        // キャラ情報
+        var info = document.createElement('div');
+        info.className = 'character-info';
+
+        var nameEl = document.createElement('strong');
         nameEl.textContent = char.name;
-        const br = document.createElement('br');
-        const abilityEl = document.createElement('span');
-        abilityEl.style.fontSize = '0.8em';
-        abilityEl.textContent = char.ability;
         info.appendChild(nameEl);
-        info.appendChild(br);
+
+        info.appendChild(document.createElement('br'));
+
+        var abilityEl = document.createElement('span');
+        abilityEl.className = 'character-ability';
+        abilityEl.textContent = char.ability;
         info.appendChild(abilityEl);
 
-        const deleteBtn = document.createElement('button');
+        // 削除ボタン
+        var deleteBtn = document.createElement('button');
         deleteBtn.textContent = '✕';
         deleteBtn.className = 'btn-delete';
-        deleteBtn.onclick = function(e) {
+        deleteBtn.onclick = function (e) {
             e.stopPropagation();
             if (!confirm('「' + char.name + '」を削除しますか？')) return;
-            deleteCharacter(char.id);
-            renderCharacterList(containerId, options);
-            if (options.selectedNameId) {
-                document.getElementById(options.selectedNameId).innerText =
-                    selectedChar ? selectedChar.name : (options.defaultText || '未選択');
-            }
-            if (options.onDelete) options.onDelete(char);
+            CharacterManager.remove(char.id);
+            renderCharacterList(containerId, opts);
+            updateSelectedNameDisplay(opts);
+            if (opts.onDelete) opts.onDelete(char);
         };
 
-        div.onclick = function() {
-            if (options.allowDeselect && selectedChar && selectedChar.id === char.id) {
-                selectedChar = null;
+        // クリックで選択/解除
+        card.onclick = function () {
+            if (opts.allowDeselect && App.selectedChar && App.selectedChar.id === char.id) {
+                App.selectedChar = null;
             } else {
-                selectedChar = char;
+                App.selectedChar = char;
             }
-            if (options.selectedNameId) {
-                document.getElementById(options.selectedNameId).innerText =
-                    selectedChar ? selectedChar.name : (options.defaultText || '未選択');
-            }
-            renderCharacterList(containerId, options);
-            if (options.onSelect) options.onSelect(selectedChar);
+            renderCharacterList(containerId, opts);
+            updateSelectedNameDisplay(opts);
+            if (opts.onSelect) opts.onSelect(App.selectedChar);
         };
 
-        div.appendChild(info);
-        div.appendChild(deleteBtn);
-        list.appendChild(div);
+        card.appendChild(info);
+        card.appendChild(deleteBtn);
+        container.appendChild(card);
     });
+}
+
+/** 選択中キャラ名の表示を更新 */
+function updateSelectedNameDisplay(opts) {
+    if (!opts.selectedNameId) return;
+    var el = document.getElementById(opts.selectedNameId);
+    if (el) {
+        el.innerText = App.selectedChar ? App.selectedChar.name : (opts.defaultText || '未選択');
+    }
+}
+
+// ==========================================
+//  共通 UI ヘルパー
+// ==========================================
+
+/**
+ * プレイヤータイプに応じたバッジ要素を生成する
+ * ホスト画面/ゲスト画面で統一したバッジ表示に使う
+ */
+function createPlayerBadge(playerType) {
+    var badge = document.createElement('span');
+    badge.className = 'badge';
+
+    switch (playerType) {
+        case 'host':
+            badge.textContent = '👑ホスト';
+            badge.classList.add('badge-host');
+            break;
+        case 'npc':
+            badge.textContent = '🤖NPC';
+            badge.classList.add('badge-npc');
+            break;
+        default:
+            badge.textContent = '🎮';
+            badge.classList.add('badge-player');
+            break;
+    }
+    return badge;
 }

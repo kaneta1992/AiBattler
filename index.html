@@ -14,8 +14,8 @@
     <!-- モード選択 -->
     <div id="mode-selection" class="section">
         <h2>遊び方を選んでください</h2>
-        <button class="mode-btn" onclick="startHostMode()">👑 親機（ホスト）になる<br><span style="font-size: 0.6em; font-weight: normal;">この端末でマッチングとAI判定を行います</span></button>
-        <button class="mode-btn" style="background-color: #3498db;" onclick="startPlayerMode()">🎮 子機（プレイヤー）として参加<br><span style="font-size: 0.6em; font-weight: normal;">ホストの部屋に入ってキャラを戦わせます</span></button>
+        <button class="mode-btn" onclick="startHostMode()">👑 親機（ホスト）になる<br><span class="subtitle">この端末でマッチングとAI判定を行います</span></button>
+        <button class="mode-btn mode-btn-player" onclick="startPlayerMode()">🎮 子機（プレイヤー）として参加<br><span class="subtitle">ホストの部屋に入ってキャラを戦わせます</span></button>
     </div>
 
     <!-- ============================================ -->
@@ -23,11 +23,11 @@
     <!-- ============================================ -->
     <div id="host-view" class="hidden">
         <!-- APIキー & ルームPIN -->
-        <div class="section" style="border: 2px solid #f1c40f;">
+        <div class="section section-host">
             <h2>👑 ホストコントロールパネル</h2>
             <input type="password" id="api-key" placeholder="Gemini API Key を入力 (必須)">
-            <div style="background: #fdfefe; padding: 15px; border: 2px dashed #ccc; border-radius: 8px; margin-bottom: 15px;">
-                <p style="text-align: center; margin: 0; color: #7f8c8d;">参加者へ教えるルームPIN</p>
+            <div class="room-pin-box">
+                <p class="room-pin-label">参加者へ教えるルームPIN</p>
                 <h3 id="display-pin" class="room-pin">----</h3>
             </div>
         </div>
@@ -40,29 +40,29 @@
             <button onclick="createCharacterHost()">登録して保存</button>
             <h3>キャラクター一覧 (クリックで参戦 / 再クリックで解除)</h3>
             <div id="host-character-list"></div>
-            <p>参戦キャラ: <strong id="host-selected-char-name" style="color:#e74c3c;">未選択 (参戦しない)</strong></p>
+            <p>参戦キャラ: <strong id="host-selected-char-name" class="selected-name">未選択 (参戦しない)</strong></p>
         </div>
 
         <!-- ロビー & バトル -->
         <div class="section">
             <h3>👥 参加者ロビー (<span id="lobby-count">0</span>人)</h3>
-            <div id="lobby-list" style="background: #fafafa; border: 1px solid #ccc; min-height: 60px; max-height: 300px; overflow-y: auto; margin-bottom: 10px;">
-                <p style="padding: 10px; color: #999; margin:0;">プレイヤーの参加を待っています...</p>
+            <div id="lobby-list" class="lobby-list">
+                <p class="empty-message">プレイヤーの参加を待っています...</p>
             </div>
 
-            <div style="display: flex; gap: 10px; margin-bottom: 10px;">
-                <button onclick="addRandomNPC()" style="flex: 1; background-color: #9b59b6;">🤖 NPCを追加</button>
-                <button onclick="removeAllNPCs()" class="btn-danger" style="flex: 1;">NPCを全削除</button>
+            <div class="flex-row mb-10">
+                <button onclick="addRandomNPC()" class="btn-npc flex-1">🤖 NPCを追加</button>
+                <button onclick="removeAllNPCs()" class="btn-danger flex-1">NPCを全削除</button>
             </div>
 
             <div class="control-panel">
-                <h3 style="margin-top: 0; color: #16a085;">⚔️ バトル開始メニュー</h3>
-                <p style="font-size: 0.8em; margin-bottom: 10px;">※リストのチェックボックスで戦わせる人を選んでください。</p>
-                <div style="display: flex; gap: 10px;">
-                    <button onclick="startSelectedBattle()" style="flex: 1;">指名対戦 (チェックした人で戦う)</button>
-                    <button onclick="startBattleRoyale()" class="btn-danger" style="flex: 1;">大乱闘 (全員で戦う)</button>
+                <h3>⚔️ バトル開始メニュー</h3>
+                <p class="note">※リストのチェックボックスで戦わせる人を選んでください。</p>
+                <div class="flex-row">
+                    <button onclick="startSelectedBattle()" class="flex-1">指名対戦 (チェックした人で戦う)</button>
+                    <button onclick="startBattleRoyale()" class="btn-danger flex-1">大乱闘 (全員で戦う)</button>
                 </div>
-                <p id="host-status" style="color: #e67e22; font-weight: bold; text-align: center; margin: 5px 0 0 0;"></p>
+                <p id="host-status" class="status-text"></p>
             </div>
         </div>
 
@@ -80,32 +80,32 @@
         <!-- キャラクター準備 -->
         <div class="section">
             <h2>1. キャラクター準備</h2>
-            <input type="text" id="char-name" placeholder="名前 (例: 炎の魔術師フレア)">
-            <textarea id="char-ability" placeholder="能力 (例: 相手の能力を無効化し、すべてを焼き尽くす炎を放つ)" rows="2"></textarea>
+            <input type="text" id="player-char-name" placeholder="名前 (例: 炎の魔術師フレア)">
+            <textarea id="player-char-ability" placeholder="能力 (例: 相手の能力を無効化し、すべてを焼き尽くす炎を放つ)" rows="2"></textarea>
             <button onclick="createCharacter()">登録して保存</button>
             <h3>マイキャラクター (クリックで選択 / 入室後もキャラ変更可)</h3>
-            <div id="character-list"></div>
-            <p>現在選択中: <strong id="selected-char-name" style="color:#e74c3c;">未選択</strong></p>
+            <div id="player-character-list"></div>
+            <p>現在選択中: <strong id="player-selected-char-name" class="selected-name">未選択</strong></p>
         </div>
 
         <!-- ルーム参加 -->
         <div class="section">
             <h2>2. ルームに参加</h2>
-            <input type="number" id="room-pin-input" placeholder="ホストの4桁のPINを入力" style="font-size: 1.5em; text-align: center; letter-spacing: 5px;">
+            <input type="number" id="room-pin" class="pin-input" placeholder="ホストの4桁のPINを入力">
             <button id="join-btn" onclick="joinRoom()" disabled>ルームに入室する</button>
-            <p id="player-status" style="font-weight: bold; color: #e67e22;"></p>
+            <p id="player-status" class="status-text"></p>
         </div>
 
         <!-- 参加者一覧 (入室後に表示) -->
         <div id="player-lobby-section" class="section hidden">
-            <h2>👥 参加者一覧 <span style="font-size:0.6em; font-weight:normal; color:#999;">※能力はバトル開始時に公開されます</span></h2>
+            <h2>👥 参加者一覧 <span class="subtitle">※能力はバトル開始時に公開されます</span></h2>
             <div id="player-lobby-list"></div>
         </div>
 
         <!-- 戦闘結果 -->
         <div class="section">
             <h2>⚔️ 戦闘結果</h2>
-            <div id="battle-log" class="battle-log">ルームに参加すると、ホストが試合を開始します。</div>
+            <div id="player-battle-log" class="battle-log">ルームに参加すると、ホストが試合を開始します。</div>
         </div>
     </div>
 

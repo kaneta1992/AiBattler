@@ -1,127 +1,168 @@
 // ==========================================
-//  子機（プレイヤー）の処理
+//  子機（ゲスト / プレイヤー）の処理
 // ==========================================
 
-let playerConn = null;
+var Player = (function () {
 
-// --- キャラクター表示 ---
-function refreshPlayerCharacterList() {
-    renderCharacterList('character-list', {
-        selectedNameId: 'selected-char-name',
-        defaultText: '未選択',
-        allowDeselect: false,
-        onSelect: function(char) {
-            document.getElementById('join-btn').disabled = !char;
-            // 接続中ならキャラ変更を送信
-            if (playerConn && playerConn.open && char) {
-                playerConn.send({ type: 'change_character', character: { name: char.name, ability: char.ability } });
+    var playerConn = null;
+
+    // ==========================================
+    //  初期化
+    // ==========================================
+
+    function init() {
+        // Player 側の PeerJS 初期化は joinRoom で行う
+    }
+
+    // ==========================================
+    //  キャラクター管理
+    // ==========================================
+
+    function refreshCharacterList() {
+        renderCharacterList('player-character-list', {
+            selectedNameId: 'player-selected-char-name',
+            defaultText: '未選択（参戦できません）',
+            allowDeselect: false,
+            onSelect: notifyCharacterChange,
+        });
+    }
+
+    function createCharacter() {
+        CharacterManager.createFromInput('player-char-name', 'player-char-ability', function () {
+            refreshCharacterList();
+        });
+    }
+
+    /** ホストにキャラ変更を通知 + join ボタン有効化 */
+    function notifyCharacterChange() {
+        // キャラ選択状態に応じて join ボタンの有効/無効を切り替え
+        var joinBtn = document.getElementById('join-btn');
+        if (joinBtn) joinBtn.disabled = !App.selectedChar;
+
+        if (playerConn && playerConn.open && App.selectedChar) {
+            playerConn.send({ type: 'change_character', character: App.selectedChar });
+        }
+    }
+
+    // ==========================================
+    //  ルーム参加
+    // ==========================================
+
+    function joinRoom() {
+        if (!App.selectedChar) return alert('先にキャラクターを選択してください。');
+
+        var pinEl = document.getElementById('room-pin');
+        var pin = pinEl.value.trim();
+        if (!/^\d{4}$/.test(pin)) return alert('4桁の数字でPINを入力してください。');
+
+        var targetId = 'aibattler-room-' + pin;
+        document.getElementById('player-status').innerText = '接続中...';
+
+        // 既存の Peer をクリーンアップ
+        if (App.peer) {
+            App.peer.destroy();
+            App.peer = null;
+        }
+
+        App.peer = new Peer();
+
+        App.peer.on('open', function () {
+            playerConn = App.peer.connect(targetId, { reliable: true });
+
+            playerConn.on('open', function () {
+                document.getElementById('player-status').innerText = '接続完了！ ロビーで待機中...';
+                playerConn.send({ type: 'join', character: App.selectedChar });
+            });
+
+            playerConn.on('data', handleHostMessage);
+
+            playerConn.on('close', function () {
+                document.getElementById('player-status').innerText = 'ホストとの接続が切れました。';
+            });
+        });
+
+        App.peer.on('error', function (err) {
+            document.getElementById('player-status').innerText = 'エラー: ' + err.message;
+        });
+    }
+
+    // ==========================================
+    //  ホストからのメッセージ処理
+    // ==========================================
+
+    function handleHostMessage(data) {
+        switch (data.type) {
+            case 'status':
+                document.getElementById('player-status').innerText = data.msg;
+                break;
+
+            case 'lobby_update':
+                document.getElementById('player-lobby-section').classList.remove('hidden');
+                updateLobbyUI(data.players, false);
+                break;
+
+            case 'abilities_reveal':
+                updateLobbyUI(data.players, true);
+                break;
+
+            case 'result':
+                var logEl = document.getElementById('player-battle-log');
+                logEl.innerHTML = BattleLogRenderer.render(data.log, data.participantNames);
+                logEl.scrollTop = logEl.scrollHeight;
+                break;
+        }
+    }
+
+    // ==========================================
+    //  ロビー UI
+    // ==========================================
+
+    function updateLobbyUI(players, showAbility) {
+        var list = document.getElementById('player-lobby-list');
+        list.innerHTML = '';
+
+        if (!players || players.length === 0) {
+            var msg = document.createElement('p');
+            msg.className = 'empty-message';
+            msg.textContent = 'ロビーにプレイヤーがいません。';
+            list.appendChild(msg);
+            return;
+        }
+
+        players.forEach(function (p) {
+            var div = document.createElement('div');
+            div.className = 'player-item';
+
+            var badge = createPlayerBadge(p.playerType);
+            var nameSpan = document.createElement('strong');
+            nameSpan.textContent = ' ' + p.name;
+
+            div.appendChild(badge);
+            div.appendChild(nameSpan);
+
+            if (showAbility && p.ability) {
+                var abilitySpan = document.createElement('span');
+                abilitySpan.className = 'player-ability-text';
+                abilitySpan.textContent = p.ability;
+                div.appendChild(abilitySpan);
             }
-        },
-        onDelete: function() {
-            document.getElementById('join-btn').disabled = !selectedChar;
-        }
-    });
-}
 
-function createCharacter() {
-    createCharacterFromInput('char-name', 'char-ability', function() {
-        refreshPlayerCharacterList();
-    });
-}
-
-// --- ロビー表示 (ゲスト側) ---
-function updatePlayerLobby(players, showAbilities) {
-    var section = document.getElementById('player-lobby-section');
-    section.classList.remove('hidden');
-    var list = document.getElementById('player-lobby-list');
-    list.innerHTML = '';
-
-    players.forEach(function(p) {
-        var div = document.createElement('div');
-        div.className = 'player-lobby-item';
-
-        // バッジ (ホストと同じ表示形式)
-        var badge = document.createElement('span');
-        badge.className = 'badge';
-        if (p.playerType === 'host') {
-            badge.textContent = '👑ホスト';
-            badge.classList.add('badge-host');
-        } else if (p.playerType === 'npc') {
-            badge.textContent = '🤖NPC';
-            badge.classList.add('badge-npc');
-        } else {
-            badge.textContent = '🎮';
-        }
-
-        var nameSpan = document.createElement('strong');
-        nameSpan.textContent = ' ' + p.name;
-
-        // 自分のキャラにバッジ表示
-        if (selectedChar && p.name === selectedChar.name && p.playerType === 'player') {
-            var youBadge = document.createElement('span');
-            youBadge.className = 'badge badge-you';
-            youBadge.textContent = 'あなた';
-            nameSpan.appendChild(document.createTextNode(' '));
-            nameSpan.appendChild(youBadge);
-        }
-
-        div.appendChild(badge);
-        div.appendChild(nameSpan);
-
-        if (showAbilities && p.ability) {
-            var abilitySpan = document.createElement('div');
-            abilitySpan.style.cssText = 'font-size:0.8em; color:#666; margin-left: 1.5em;';
-            abilitySpan.textContent = '💡 ' + p.ability;
-            div.appendChild(abilitySpan);
-        }
-
-        list.appendChild(div);
-    });
-}
-
-// --- ルーム参加 ---
-function joinRoom() {
-    var pin = document.getElementById('room-pin-input').value;
-    if (!pin || pin.length !== 4) return alert('4桁のPINを入力してください');
-    if (!selectedChar) return alert('キャラクターを選択してください');
-
-    var roomId = 'aibattler-room-' + pin;
-    var statusEl = document.getElementById('player-status');
-    statusEl.innerText = 'ホストに接続中...';
-
-    peer = new Peer();
-
-    peer.on('open', function() {
-        playerConn = peer.connect(roomId);
-
-        playerConn.on('open', function() {
-            statusEl.innerText = '✅ ロビーに入室しました！ホストが試合を開始するのを待っています...';
-            playerConn.send({ type: 'join', character: { name: selectedChar.name, ability: selectedChar.ability } });
-            document.getElementById('join-btn').disabled = true;
-            document.getElementById('join-btn').textContent = '入室済み';
-            document.getElementById('room-pin-input').disabled = true;
+            list.appendChild(div);
         });
+    }
 
-        playerConn.on('data', function(data) {
-            if (data.type === 'status') {
-                statusEl.innerText = data.msg;
-            } else if (data.type === 'lobby_update') {
-                updatePlayerLobby(data.players, false);
-            } else if (data.type === 'abilities_reveal') {
-                updatePlayerLobby(data.players, true);
-            } else if (data.type === 'result') {
-                statusEl.innerText = '⚔️ 対戦結果！';
-                document.getElementById('battle-log').innerHTML = renderBattleLog(data.log, data.participantNames);
-            }
-        });
+    // ==========================================
+    //  公開インターフェース
+    // ==========================================
 
-        playerConn.on('error', function() {
-            statusEl.innerText = '❌ ホストに接続できませんでした。';
-        });
+    return {
+        init: init,
+        refreshCharacterList: refreshCharacterList,
+        createCharacter: createCharacter,
+        joinRoom: joinRoom,
+    };
+})();
 
-        playerConn.on('close', function() {
-            statusEl.innerText = '⚠️ ホストとの接続が切れました。';
-            playerConn = null;
-        });
-    });
-}
+// --- HTML onclick から呼び出すグローバル関数 ---
+function createCharacter() { Player.createCharacter(); }
+function joinRoom() { Player.joinRoom(); }

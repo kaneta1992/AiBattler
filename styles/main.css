@@ -1,44 +1,281 @@
-body { font-family: sans-serif; background-color: #f4f4f9; color: #333; max-width: 800px; margin: 0 auto; padding: 20px; }
-h1, h2, h3 { color: #2c3e50; margin-top: 0; }
-.section { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); margin-bottom: 20px; }
-input, textarea, button { width: 100%; padding: 10px; margin-top: 5px; margin-bottom: 15px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; }
-button { background-color: #3498db; color: white; border: none; cursor: pointer; font-weight: bold; }
+/* ========================================
+   AIバトラー - スタイルシート
+   ======================================== */
+
+/* --- ベース --- */
+body {
+    font-family: 'Segoe UI', 'Hiragino Sans', sans-serif;
+    background-color: #f4f4f9;
+    color: #333;
+    max-width: 800px;
+    margin: 0 auto;
+    padding: 20px;
+}
+
+h1, h2, h3 {
+    color: #2c3e50;
+    margin-top: 0;
+}
+
+/* --- フォーム要素 --- */
+input,
+textarea,
+button {
+    width: 100%;
+    padding: 10px;
+    margin-top: 5px;
+    margin-bottom: 15px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    box-sizing: border-box;
+}
+
+button {
+    background-color: #3498db;
+    color: white;
+    border: none;
+    cursor: pointer;
+    font-weight: bold;
+}
 button:hover { background-color: #2980b9; }
 button:disabled { background-color: #bdc3c7; cursor: not-allowed; }
-.character-card { border: 1px solid #eee; padding: 10px; border-radius: 4px; margin-bottom: 10px; background: #fafafa; display: flex; justify-content: space-between; align-items: center; cursor: pointer; }
-.selected { border: 2px solid #e74c3c; background: #fadbd8; }
-.mode-btn { padding: 20px; font-size: 1.2em; margin-bottom: 10px; background-color: #2ecc71; }
-.mode-btn:hover { background-color: #27ae60; }
-.hidden { display: none; }
-.room-pin { font-size: 3em; color: #e74c3c; text-align: center; letter-spacing: 5px; margin: 0; }
-.player-item { padding: 8px; border-bottom: 1px solid #eee; display: flex; align-items: center; }
-.player-item input[type="checkbox"] { width: auto; margin: 0 10px 0 0; transform: scale(1.5); }
-.control-panel { background: #e8f8f5; padding: 15px; border-radius: 8px; border: 2px solid #1abc9c; margin-top: 15px; }
+
 .btn-danger { background-color: #e74c3c; }
 .btn-danger:hover { background-color: #c0392b; }
 
-/* キャラ削除ボタン */
-.btn-delete { width: auto; min-width: 30px; padding: 4px 8px; margin: 0 0 0 8px; background-color: #95a5a6; font-size: 0.8em; border-radius: 50%; }
+.btn-npc { background-color: #9b59b6; }
+.btn-npc:hover { background-color: #8e44ad; }
+
+.btn-delete {
+    width: auto;
+    min-width: 30px;
+    padding: 4px 10px;
+    margin: 0 0 0 8px;
+    background-color: #95a5a6;
+    font-size: 0.8em;
+    border-radius: 4px;
+}
 .btn-delete:hover { background-color: #e74c3c; }
 
-/* バッジ */
-.badge { display: inline-block; padding: 1px 6px; border-radius: 3px; font-size: 0.75em; margin-right: 4px; vertical-align: middle; }
+/* --- レイアウト --- */
+.hidden { display: none; }
+
+.section {
+    background: white;
+    padding: 20px;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    margin-bottom: 20px;
+}
+
+.section-host { border: 2px solid #f1c40f; }
+
+.flex-row {
+    display: flex;
+    gap: 10px;
+}
+.flex-1 { flex: 1; }
+.mb-10 { margin-bottom: 10px; }
+
+/* --- モード選択ボタン --- */
+.mode-btn {
+    padding: 20px;
+    font-size: 1.2em;
+    margin-bottom: 10px;
+    background-color: #2ecc71;
+}
+.mode-btn:hover { background-color: #27ae60; }
+.mode-btn-player { background-color: #3498db; }
+.mode-btn-player:hover { background-color: #2980b9; }
+
+/* --- ルームPIN --- */
+.room-pin-box {
+    background: #fdfefe;
+    padding: 15px;
+    border: 2px dashed #ccc;
+    border-radius: 8px;
+    margin-bottom: 15px;
+}
+.room-pin-label {
+    text-align: center;
+    margin: 0;
+    color: #7f8c8d;
+}
+.room-pin {
+    font-size: 3em;
+    color: #e74c3c;
+    text-align: center;
+    letter-spacing: 5px;
+    margin: 0;
+}
+
+/* --- コントロールパネル --- */
+.control-panel {
+    background: #e8f8f5;
+    padding: 15px;
+    border-radius: 8px;
+    border: 2px solid #1abc9c;
+    margin-top: 15px;
+}
+.control-panel h3 { margin-top: 0; color: #16a085; }
+.control-panel .note { font-size: 0.8em; margin-bottom: 10px; }
+
+/* --- キャラクターカード --- */
+.character-card {
+    border: 1px solid #eee;
+    padding: 10px;
+    border-radius: 4px;
+    margin-bottom: 10px;
+    background: #fafafa;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    cursor: pointer;
+}
+.character-card.selected {
+    border: 2px solid #e74c3c;
+    background: #fadbd8;
+}
+
+.character-info { flex: 1; }
+.character-ability { font-size: 0.8em; }
+
+.selected-name { color: #e74c3c; }
+.status-text {
+    font-weight: bold;
+    color: #e67e22;
+    text-align: center;
+    margin: 5px 0 0 0;
+}
+
+/* --- ロビーリスト --- */
+.lobby-list {
+    background: #fafafa;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    min-height: 60px;
+    max-height: 300px;
+    overflow-y: auto;
+    margin-bottom: 10px;
+}
+
+.player-item {
+    padding: 8px 10px;
+    border-bottom: 1px solid #eee;
+    display: flex;
+    align-items: center;
+}
+.player-item:last-child { border-bottom: none; }
+
+.player-item input[type="checkbox"] {
+    width: auto;
+    margin: 0 10px 0 0;
+    transform: scale(1.3);
+}
+
+.player-item label {
+    cursor: pointer;
+    flex: 1;
+}
+
+.player-ability-text {
+    font-size: 0.75em;
+    color: #888;
+    display: block;
+    margin-left: 2em;
+}
+
+/* --- ゲスト用ロビー --- */
+.player-lobby-item {
+    padding: 8px 10px;
+    border-bottom: 1px solid #eee;
+}
+.player-lobby-item:last-child { border-bottom: none; }
+
+.player-ability-detail {
+    font-size: 0.8em;
+    color: #666;
+    margin-left: 1.5em;
+}
+
+/* --- バッジ --- */
+.badge {
+    display: inline-block;
+    padding: 2px 6px;
+    border-radius: 3px;
+    font-size: 0.75em;
+    margin-right: 4px;
+    vertical-align: middle;
+}
 .badge-host { background: #f1c40f; color: #333; }
 .badge-npc { background: #9b59b6; color: white; }
-.badge-you { background: #3498db; color: white; font-size: 0.7em; }
+.badge-player { background: #3498db; color: white; }
+.badge-you { background: #e74c3c; color: white; font-size: 0.7em; }
 
-/* 戦闘ログ (Markdown対応) */
-.battle-log { background: #1a1a2e; color: #e6e6e6; padding: 20px; border-radius: 8px; min-height: 100px; max-height: 500px; overflow-y: auto; font-family: 'Segoe UI', 'Hiragino Sans', sans-serif; line-height: 1.8; font-size: 0.95em; }
+/* --- 戦闘ログ (Markdown対応) --- */
+.battle-log {
+    background: #1a1a2e;
+    color: #e6e6e6;
+    padding: 20px;
+    border-radius: 8px;
+    min-height: 100px;
+    max-height: 500px;
+    overflow-y: auto;
+    font-family: 'Segoe UI', 'Hiragino Sans', sans-serif;
+    line-height: 1.8;
+    font-size: 0.95em;
+}
 .battle-log strong { color: #f1c40f; }
 .battle-log em { color: #bbb; }
 .battle-log del { opacity: 0.5; }
 .battle-log hr { border: none; border-top: 1px solid #444; margin: 10px 0; }
+
+.battle-log blockquote {
+    border-left: 3px solid #e74c3c;
+    margin: 8px 0;
+    padding: 4px 12px;
+    background: rgba(231, 76, 60, 0.1);
+}
+
+.battle-log table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 10px 0;
+}
+.battle-log th,
+.battle-log td {
+    border: 1px solid #444;
+    padding: 6px 10px;
+    text-align: left;
+}
+.battle-log th { background: rgba(255, 255, 255, 0.1); }
+
 .log-heading { display: block; margin: 8px 0 4px 0; color: #f9ca24; }
 .log-h1 { font-size: 1.3em; }
 .log-h2 { font-size: 1.2em; }
 .log-h3 { font-size: 1.1em; }
-.char-name { font-weight: bold; text-shadow: 0 0 6px currentColor; }
 
-/* プレイヤーロビー */
-.player-lobby-item { padding: 8px 10px; border-bottom: 1px solid #eee; }
-.player-lobby-item:last-child { border-bottom: none; }
+.char-name {
+    font-weight: bold;
+    text-shadow: 0 0 6px currentColor;
+}
+
+/* --- PIN入力 --- */
+.pin-input {
+    font-size: 1.5em;
+    text-align: center;
+    letter-spacing: 5px;
+}
+
+/* --- 注釈 --- */
+.subtitle {
+    font-size: 0.6em;
+    font-weight: normal;
+    color: #999;
+}
+
+.empty-message {
+    padding: 10px;
+    color: #999;
+    margin: 0;
+}
