@@ -5,7 +5,7 @@
 
 var GeminiAPI = (function () {
     var API_URL =
-        'https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-lite-preview:generateContent';
+        'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent';
 
     /**
      * Gemini API を呼び出し、生成テキストを返す
