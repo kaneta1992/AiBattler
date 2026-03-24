@@ -2,70 +2,120 @@
 //  子機（プレイヤー）の処理
 // ==========================================
 
-let characters = [];
-let selectedChar = null;
 let playerConn = null;
 
-function loadCharacters() {
-    characters = JSON.parse(localStorage.getItem('ai_battler_chars')) || [];
-    renderCharacters();
+// --- キャラクター表示 ---
+function refreshPlayerCharacterList() {
+    renderCharacterList('character-list', {
+        selectedNameId: 'selected-char-name',
+        defaultText: '未選択',
+        allowDeselect: false,
+        onSelect: function(char) {
+            document.getElementById('join-btn').disabled = !char;
+            // 接続中ならキャラ変更を送信
+            if (playerConn && playerConn.open && char) {
+                playerConn.send({ type: 'change_character', character: { name: char.name, ability: char.ability } });
+            }
+        },
+        onDelete: function() {
+            document.getElementById('join-btn').disabled = !selectedChar;
+        }
+    });
 }
 
 function createCharacter() {
-    const name = document.getElementById('char-name').value;
-    const ability = document.getElementById('char-ability').value;
-    if (!name || !ability) return alert('名前と能力を入力してください');
-    characters.push({ id: Date.now(), name, ability });
-    localStorage.setItem('ai_battler_chars', JSON.stringify(characters));
-    renderCharacters();
+    createCharacterFromInput('char-name', 'char-ability', function() {
+        refreshPlayerCharacterList();
+    });
 }
 
-function renderCharacters() {
-    const list = document.getElementById('character-list');
+// --- ロビー表示 (ゲスト側) ---
+function updatePlayerLobby(players, showAbilities) {
+    var section = document.getElementById('player-lobby-section');
+    section.classList.remove('hidden');
+    var list = document.getElementById('player-lobby-list');
     list.innerHTML = '';
-    characters.forEach(char => {
-        const div = document.createElement('div');
-        div.className = `character-card ${selectedChar && selectedChar.id === char.id ? 'selected' : ''}`;
-        div.innerHTML = `<div><strong>${char.name}</strong><br><span style="font-size:0.8em">${char.ability}</span></div>`;
-        div.onclick = () => {
-            selectedChar = char;
-            document.getElementById('selected-char-name').innerText = char.name;
-            renderCharacters();
-            document.getElementById('join-btn').disabled = false;
-        };
+
+    players.forEach(function(p) {
+        var div = document.createElement('div');
+        div.className = 'player-lobby-item';
+
+        var icon = '🎮';
+        if (p.playerType === 'host') icon = '👑';
+        else if (p.playerType === 'npc') icon = '🤖';
+
+        var iconSpan = document.createElement('span');
+        iconSpan.textContent = icon + ' ';
+
+        var nameSpan = document.createElement('strong');
+        nameSpan.textContent = p.name;
+
+        // 自分のキャラにバッジ表示
+        if (selectedChar && p.name === selectedChar.name && p.playerType === 'player') {
+            var youBadge = document.createElement('span');
+            youBadge.className = 'badge badge-you';
+            youBadge.textContent = 'あなた';
+            nameSpan.appendChild(document.createTextNode(' '));
+            nameSpan.appendChild(youBadge);
+        }
+
+        div.appendChild(iconSpan);
+        div.appendChild(nameSpan);
+
+        if (showAbilities && p.ability) {
+            var abilitySpan = document.createElement('div');
+            abilitySpan.style.cssText = 'font-size:0.8em; color:#666; margin-left: 1.5em;';
+            abilitySpan.textContent = '💡 ' + p.ability;
+            div.appendChild(abilitySpan);
+        }
+
         list.appendChild(div);
     });
 }
 
+// --- ルーム参加 ---
 function joinRoom() {
-    const pin = document.getElementById('room-pin-input').value;
+    var pin = document.getElementById('room-pin-input').value;
     if (!pin || pin.length !== 4) return alert('4桁のPINを入力してください');
+    if (!selectedChar) return alert('キャラクターを選択してください');
 
-    const roomId = 'aibattler-room-' + pin;
-    const statusEl = document.getElementById('player-status');
+    var roomId = 'aibattler-room-' + pin;
+    var statusEl = document.getElementById('player-status');
     statusEl.innerText = 'ホストに接続中...';
 
     peer = new Peer();
 
-    peer.on('open', () => {
+    peer.on('open', function() {
         playerConn = peer.connect(roomId);
 
-        playerConn.on('open', () => {
+        playerConn.on('open', function() {
             statusEl.innerText = '✅ ロビーに入室しました！ホストが試合を開始するのを待っています...';
-            playerConn.send({ type: 'join', character: selectedChar });
+            playerConn.send({ type: 'join', character: { name: selectedChar.name, ability: selectedChar.ability } });
+            document.getElementById('join-btn').disabled = true;
+            document.getElementById('join-btn').textContent = '入室済み';
+            document.getElementById('room-pin-input').disabled = true;
         });
 
-        playerConn.on('data', (data) => {
+        playerConn.on('data', function(data) {
             if (data.type === 'status') {
                 statusEl.innerText = data.msg;
+            } else if (data.type === 'lobby_update') {
+                updatePlayerLobby(data.players, false);
+            } else if (data.type === 'abilities_reveal') {
+                updatePlayerLobby(data.players, true);
             } else if (data.type === 'result') {
                 statusEl.innerText = '⚔️ 対戦結果！';
-                document.getElementById('battle-log').innerText = data.log;
+                document.getElementById('battle-log').innerHTML = renderBattleLog(data.log, data.participantNames);
             }
         });
 
-        playerConn.on('error', () => {
+        playerConn.on('error', function() {
             statusEl.innerText = '❌ ホストに接続できませんでした。';
+        });
+
+        playerConn.on('close', function() {
+            statusEl.innerText = '⚠️ ホストとの接続が切れました。';
+            playerConn = null;
         });
     });
 }

@@ -2,40 +2,115 @@
 //  親機（ホスト）の処理
 // ==========================================
 
-let lobbyPlayers = []; // { id, conn, character }
+let lobbyPlayers = []; // { id, conn, character: {name, ability}, type: 'player'|'host'|'npc' }
 
+// --- ホスト初期化 ---
 function initHost() {
     const pin = Math.floor(1000 + Math.random() * 9000).toString();
     const roomId = 'aibattler-room-' + pin;
     peer = new Peer(roomId);
 
-    peer.on('open', () => {
+    peer.on('open', function() {
         document.getElementById('display-pin').innerText = pin;
     });
 
-    peer.on('connection', (conn) => {
-        conn.on('data', (data) => {
+    peer.on('connection', function(conn) {
+        conn.on('data', function(data) {
             if (data.type === 'join') {
-                const playerObj = { id: conn.peer, conn: conn, character: data.character };
+                var playerObj = { id: conn.peer, conn: conn, character: data.character, type: 'player' };
                 lobbyPlayers.push(playerObj);
                 updateLobbyUI();
-                broadcastStatus(`新しいプレイヤー「${data.character.name}」がロビーに参加しました！`);
+                broadcastLobby();
+                broadcastStatus('新しいプレイヤー「' + data.character.name + '」がロビーに参加しました！');
+            } else if (data.type === 'change_character') {
+                var player = lobbyPlayers.find(function(p) { return p.id === conn.peer; });
+                if (player) {
+                    var oldName = player.character.name;
+                    player.character = data.character;
+                    updateLobbyUI();
+                    broadcastLobby();
+                    broadcastStatus('「' + oldName + '」が「' + data.character.name + '」にキャラ変更しました！');
+                }
             }
         });
 
-        conn.on('close', () => {
-            lobbyPlayers = lobbyPlayers.filter(p => p.id !== conn.peer);
+        conn.on('close', function() {
+            var player = lobbyPlayers.find(function(p) { return p.id === conn.peer; });
+            var name = player ? player.character.name : '不明';
+            lobbyPlayers = lobbyPlayers.filter(function(p) { return p.id !== conn.peer; });
             updateLobbyUI();
+            broadcastLobby();
         });
     });
 
-    document.getElementById('api-key').addEventListener('change', (e) => {
+    document.getElementById('api-key').addEventListener('change', function(e) {
         localStorage.setItem('gemini_api_key', e.target.value);
     });
 }
 
+// --- ホストキャラクター ---
+function refreshHostCharacterList() {
+    renderCharacterList('host-character-list', {
+        selectedNameId: 'host-selected-char-name',
+        defaultText: '未選択 (参戦しない)',
+        allowDeselect: true,
+        onSelect: function() { updateHostInLobby(); },
+        onDelete: function() { updateHostInLobby(); }
+    });
+}
+
+function createCharacterHost() {
+    createCharacterFromInput('host-char-name', 'host-char-ability', function() {
+        refreshHostCharacterList();
+    });
+}
+
+function updateHostInLobby() {
+    lobbyPlayers = lobbyPlayers.filter(function(p) { return p.type !== 'host'; });
+    if (selectedChar) {
+        lobbyPlayers.unshift({
+            id: 'host',
+            conn: null,
+            character: { name: selectedChar.name, ability: selectedChar.ability },
+            type: 'host'
+        });
+    }
+    updateLobbyUI();
+    broadcastLobby();
+}
+
+// --- NPC管理 ---
+function addRandomNPC() {
+    var available = NPC_POOL.filter(function(npc) {
+        return !lobbyPlayers.some(function(p) { return p.type === 'npc' && p.character.name === npc.name; });
+    });
+    if (available.length === 0) return alert('使用可能なNPCがもういません！');
+    var npc = available[Math.floor(Math.random() * available.length)];
+    lobbyPlayers.push({
+        id: 'npc-' + Date.now(),
+        conn: null,
+        character: { name: npc.name, ability: npc.ability },
+        type: 'npc'
+    });
+    updateLobbyUI();
+    broadcastLobby();
+}
+
+function removeNPC(npcId) {
+    lobbyPlayers = lobbyPlayers.filter(function(p) { return p.id !== npcId; });
+    updateLobbyUI();
+    broadcastLobby();
+}
+
+function removeAllNPCs() {
+    lobbyPlayers = lobbyPlayers.filter(function(p) { return p.type !== 'npc'; });
+    updateLobbyUI();
+    broadcastLobby();
+}
+
+// --- ロビーUI ---
 function updateLobbyUI() {
-    const list = document.getElementById('lobby-list');
+    var list = document.getElementById('lobby-list');
     document.getElementById('lobby-count').innerText = lobbyPlayers.length;
 
     if (lobbyPlayers.length === 0) {
@@ -44,83 +119,134 @@ function updateLobbyUI() {
     }
 
     list.innerHTML = '';
-    lobbyPlayers.forEach((p, index) => {
-        const div = document.createElement('div');
+    lobbyPlayers.forEach(function(p, index) {
+        var div = document.createElement('div');
         div.className = 'player-item';
 
-        const checkbox = document.createElement('input');
+        var checkbox = document.createElement('input');
         checkbox.type = 'checkbox';
-        checkbox.id = `check-${index}`;
+        checkbox.id = 'check-' + index;
         checkbox.value = index;
-        checkbox.style.cssText = 'width:auto; margin:0 10px 0 0; transform:scale(1.5);';
+        checkbox.checked = true;
 
-        const label = document.createElement('label');
-        label.htmlFor = `check-${index}`;
+        var label = document.createElement('label');
+        label.htmlFor = 'check-' + index;
         label.style.cssText = 'cursor:pointer; flex:1;';
 
-        const strong = document.createElement('strong');
-        strong.textContent = p.character.name;
+        var badge = document.createElement('span');
+        badge.className = 'badge';
+        if (p.type === 'host') {
+            badge.textContent = '👑ホスト';
+            badge.classList.add('badge-host');
+        } else if (p.type === 'npc') {
+            badge.textContent = '🤖NPC';
+            badge.classList.add('badge-npc');
+        } else {
+            badge.textContent = '🎮';
+        }
 
-        const span = document.createElement('span');
-        span.style.cssText = 'font-size:0.8em; color:#666;';
-        span.textContent = ` - ${p.character.ability}`;
+        var nameSpan = document.createElement('strong');
+        nameSpan.textContent = ' ' + p.character.name;
 
-        label.appendChild(strong);
-        label.appendChild(span);
+        var abilitySpan = document.createElement('span');
+        abilitySpan.style.cssText = 'font-size:0.75em; color:#888; display:block; margin-left: 2em;';
+        abilitySpan.textContent = p.character.ability;
+
+        label.appendChild(badge);
+        label.appendChild(nameSpan);
+        label.appendChild(abilitySpan);
         div.appendChild(checkbox);
         div.appendChild(label);
+
+        if (p.type === 'npc') {
+            var delBtn = document.createElement('button');
+            delBtn.textContent = '✕';
+            delBtn.className = 'btn-delete';
+            delBtn.onclick = (function(npcId) {
+                return function(e) { e.stopPropagation(); removeNPC(npcId); };
+            })(p.id);
+            div.appendChild(delBtn);
+        }
+
         list.appendChild(div);
     });
 }
 
+// --- ブロードキャスト ---
+function broadcastLobby() {
+    var lobbyData = lobbyPlayers.map(function(p) {
+        return { name: p.character.name, playerType: p.type };
+    });
+    lobbyPlayers.forEach(function(p) {
+        if (p.conn && p.conn.open) {
+            p.conn.send({ type: 'lobby_update', players: lobbyData });
+        }
+    });
+}
+
 function broadcastStatus(msg) {
-    lobbyPlayers.forEach(p => {
+    lobbyPlayers.forEach(function(p) {
         if (p.conn && p.conn.open) p.conn.send({ type: 'status', msg: msg });
     });
 }
 
-function broadcastResult(log) {
-    document.getElementById('host-battle-log').innerText = log;
-    lobbyPlayers.forEach(p => {
-        if (p.conn && p.conn.open) p.conn.send({ type: 'result', log: log });
+function broadcastAbilitiesReveal(participants) {
+    var revealData = participants.map(function(p) {
+        return { name: p.character.name, ability: p.character.ability, playerType: p.type };
+    });
+    lobbyPlayers.forEach(function(p) {
+        if (p.conn && p.conn.open) {
+            p.conn.send({ type: 'abilities_reveal', players: revealData });
+        }
     });
 }
 
-// 指名対戦（チェックを入れた人で対戦、2人以上なら何人でもOK）
-function startSelectedBattle() {
-    const checkboxes = document.querySelectorAll('#lobby-list input[type="checkbox"]:checked');
-    if (checkboxes.length < 2) return alert('対戦させるプレイヤーを2人以上チェックしてください。');
+function broadcastResult(log, participantNames) {
+    document.getElementById('host-battle-log').innerHTML = renderBattleLog(log, participantNames);
+    lobbyPlayers.forEach(function(p) {
+        if (p.conn && p.conn.open) {
+            p.conn.send({ type: 'result', log: log, participantNames: participantNames });
+        }
+    });
+}
 
-    const selectedPlayers = Array.from(checkboxes).map(cb => lobbyPlayers[cb.value]);
+// --- バトル ---
+function startSelectedBattle() {
+    var checkboxes = document.querySelectorAll('#lobby-list input[type="checkbox"]:checked');
+    if (checkboxes.length < 2) return alert('対戦させるプレイヤーを2人以上チェックしてください。');
+    var selectedPlayers = Array.from(checkboxes).map(function(cb) { return lobbyPlayers[cb.value]; });
     executeBattle(selectedPlayers);
 }
 
-// 大乱闘（ロビーにいる全員で対戦）
 function startBattleRoyale() {
     if (lobbyPlayers.length < 2) return alert('ロビーに2人以上のプレイヤーが必要です。');
-    executeBattle(lobbyPlayers);
+    executeBattle(lobbyPlayers.slice());
 }
 
 async function executeBattle(participants) {
-    const apiKey = document.getElementById('api-key').value;
+    var apiKey = document.getElementById('api-key').value;
     if (!apiKey) return alert('APIキーが設定されていません。');
 
-    document.getElementById('host-status').innerText = 'AIがバトルを生成中... (数秒かかります)';
-    broadcastStatus(`⚔️ バトル生成中... 参加者: ${participants.map(p => p.character.name).join(', ')}`);
+    var participantNames = participants.map(function(p) { return p.character.name; });
 
-    let prompt = `あなたは公平でドラマチックな実況者です。以下の${participants.length}人のキャラクターが戦います。\n\n`;
-    participants.forEach((p, index) => {
-        prompt += `【キャラクター${index + 1}】名前: ${p.character.name} / 能力: ${p.character.ability}\n`;
+    // 能力公開 (ゲスト側に能力情報を送信)
+    broadcastAbilitiesReveal(participants);
+
+    document.getElementById('host-status').innerText = 'AIがバトルを生成中... (数秒かかります)';
+    broadcastStatus('⚔️ バトル生成中... 参加者: ' + participantNames.join(', '));
+
+    var prompt = 'あなたは公平でドラマチックな実況者です。以下の' + participants.length + '人のキャラクターが戦います。\n\n';
+    participants.forEach(function(p, index) {
+        prompt += '【キャラクター' + (index + 1) + '】名前: ' + p.character.name + ' / 能力: ' + p.character.ability + '\n';
     });
-    prompt += `\n全員の能力を論理的に解釈し、互いの能力がどのように干渉し合うかを描写する、白熱した戦闘ログを生成してください。
-最後は必ず「勝者：〇〇」と、最終的に生き残った一人の名前を明記してください。`;
+    prompt += '\n全員の能力を論理的に解釈し、互いの能力がどのように干渉し合うかを描写する、白熱した戦闘ログを生成してください。\n最後は必ず「勝者：〇〇」と、最終的に生き残った一人の名前を明記してください。';
 
     try {
-        const resultText = await callGeminiAPI(apiKey, prompt);
+        var resultText = await callGeminiAPI(apiKey, prompt);
         document.getElementById('host-status').innerText = '完了！結果を送信しました。';
-        broadcastResult(resultText);
+        broadcastResult(resultText, participantNames);
     } catch (error) {
         document.getElementById('host-status').innerText = 'エラーが発生しました。';
-        broadcastResult(`エラー: ${error.message}`);
+        broadcastResult('エラー: ' + error.message, []);
     }
 }
