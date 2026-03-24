@@ -5,11 +5,10 @@
 
 var GeminiAPI = (function () {
     var API_URL =
-        'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent';
+        'https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-lite-preview:generateContent';
 
     /**
      * Gemini API を呼び出し、生成テキストを返す
-     * - thinkingBudget: 0 で思考トークンを抑制し高速化
      * - maxOutputTokens: 2048 で出力量を制限し高速化
      */
     async function generate(apiKey, prompt) {
@@ -24,13 +23,15 @@ var GeminiAPI = (function () {
                 generationConfig: {
                     temperature: 1.0,
                     maxOutputTokens: 2048,
-                    thinkingConfig: { thinkingBudget: 0 },
                 },
             }),
         });
 
         if (!response.ok) {
             var errorBody = await response.text();
+            if (response.status === 429) {
+                throw new Error('API利用制限に達しました。数分待ってから再試行してください。');
+            }
             throw new Error('API通信エラー (' + response.status + '): ' + errorBody.slice(0, 200));
         }
 
