@@ -229,7 +229,7 @@ var Host = (function () {
     function broadcastResult(log, participantNames) {
         var logEl = document.getElementById('host-battle-log');
         logEl.innerHTML = BattleLogRenderer.render(log, participantNames);
-        logEl.scrollTop = logEl.scrollHeight;
+        logEl.scrollTop = 0;
         sendToAll({ type: 'result', log: log, participantNames: participantNames });
     }
 

@@ -108,7 +108,7 @@ var Player = (function () {
             case 'result':
                 var logEl = document.getElementById('player-battle-log');
                 logEl.innerHTML = BattleLogRenderer.render(data.log, data.participantNames);
-                logEl.scrollTop = logEl.scrollHeight;
+                logEl.scrollTop = 0;
                 break;
         }
     }
