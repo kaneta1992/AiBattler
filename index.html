@@ -35,8 +35,10 @@
         <!-- ホストのキャラクター作成・選択 -->
         <div class="section">
             <h2>🎭 マイキャラクター</h2>
-            <input type="text" id="host-char-name" placeholder="名前 (例: 炎の魔術師フレア)">
-            <textarea id="host-char-ability" placeholder="能力 (例: 相手の能力を無効化し、すべてを焼き尽くす炎を放つ)" rows="2"></textarea>
+            <input type="text" id="host-char-name" placeholder="名前 (例: 炎の魔術師フレア)" maxlength="20">
+            <span class="char-counter" id="host-char-name-counter">0 / 20</span>
+            <textarea id="host-char-ability" placeholder="能力 (例: 相手の能力を無効化し、すべてを焼き尽くす炎を放つ)" rows="2" maxlength="200"></textarea>
+            <span class="char-counter" id="host-char-ability-counter">0 / 200</span>
             <button onclick="createCharacterHost()">登録して保存</button>
             <h3>キャラクター一覧 (クリックで参戦 / 再クリックで解除)</h3>
             <div id="host-character-list"></div>
@@ -80,8 +82,10 @@
         <!-- キャラクター準備 -->
         <div class="section">
             <h2>1. キャラクター準備</h2>
-            <input type="text" id="player-char-name" placeholder="名前 (例: 炎の魔術師フレア)">
-            <textarea id="player-char-ability" placeholder="能力 (例: 相手の能力を無効化し、すべてを焼き尽くす炎を放つ)" rows="2"></textarea>
+            <input type="text" id="player-char-name" placeholder="名前 (例: 炎の魔術師フレア)" maxlength="20">
+            <span class="char-counter" id="player-char-name-counter">0 / 20</span>
+            <textarea id="player-char-ability" placeholder="能力 (例: 相手の能力を無効化し、すべてを焼き尽くす炎を放つ)" rows="2" maxlength="100"></textarea>
+            <span class="char-counter" id="player-char-ability-counter">0 / 100</span>
             <button onclick="createCharacter()">登録して保存</button>
             <h3>マイキャラクター (クリックで選択 / 入室後もキャラ変更可)</h3>
             <div id="player-character-list"></div>

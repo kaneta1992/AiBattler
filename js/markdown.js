@@ -27,27 +27,33 @@ var BattleLogRenderer = (function () {
     /**
      * Markdown テーブルを HTML <table> に変換
      * 「| H1 | H2 |\n|---|---|\n| C1 | C2 |」形式を検出する
+     * 末尾の | や空白が省略されていてもマッチする
      */
     function convertTables(html) {
-        // 連続する | で始まる行のブロックを探す
+        // 連続する | で始まる行のブロックを探す (末尾の | は任意)
         return html.replace(
-            /((?:^[|].+[|]$\n?){2,})/gm,
+            /((?:^\|.+$\n?){2,})/gm,
             function (tableBlock) {
                 var rows = tableBlock.trim().split('\n');
                 if (rows.length < 2) return tableBlock;
 
+                var isHeaderDone = false;
                 var result = '<table>';
-                rows.forEach(function (row, idx) {
+                rows.forEach(function (row) {
+                    var trimmed = row.trim();
                     // セパレータ行 (|---|---| 等) はスキップ
-                    if (/^\|[\s\-:|]+\|$/.test(row)) return;
+                    if (/^\|[\s\-:|]+\|?\s*$/.test(trimmed)) {
+                        isHeaderDone = true;
+                        return;
+                    }
 
-                    var cells = row
+                    var cells = trimmed
                         .replace(/^\|/, '')
-                        .replace(/\|$/, '')
+                        .replace(/\|\s*$/, '')
                         .split('|')
                         .map(function (c) { return c.trim(); });
 
-                    var tag = idx === 0 ? 'th' : 'td';
+                    var tag = !isHeaderDone ? 'th' : 'td';
                     result += '<tr>';
                     cells.forEach(function (cell) {
                         result += '<' + tag + '>' + cell + '</' + tag + '>';

@@ -22,6 +22,8 @@ function startHostMode() {
     CharacterManager.load();
     Host.refreshCharacterList();
     Host.init();
+    setupCharCounter('host-char-name', 'host-char-name-counter', CharacterManager.MAX_NAME_LENGTH);
+    setupCharCounter('host-char-ability', 'host-char-ability-counter', CharacterManager.MAX_ABILITY_LENGTH);
 }
 
 function startPlayerMode() {
@@ -30,6 +32,8 @@ function startPlayerMode() {
     App.isHost = false;
     CharacterManager.load();
     Player.refreshCharacterList();
+    setupCharCounter('player-char-name', 'player-char-name-counter', CharacterManager.MAX_NAME_LENGTH);
+    setupCharCounter('player-char-ability', 'player-char-ability-counter', CharacterManager.MAX_ABILITY_LENGTH);
 }
 
 // ==========================================
@@ -38,8 +42,8 @@ function startPlayerMode() {
 
 var CharacterManager = {
     STORAGE_KEY: 'ai_battler_chars',
-    MAX_NAME_LENGTH: 30,
-    MAX_ABILITY_LENGTH: 100,
+    MAX_NAME_LENGTH: 20,
+    MAX_ABILITY_LENGTH: 200,
 
     load: function () {
         try {
@@ -74,6 +78,9 @@ var CharacterManager = {
         this.save();
         nameEl.value = '';
         abilityEl.value = '';
+        // カウンター表示をリセット
+        nameEl.dispatchEvent(new Event('input'));
+        abilityEl.dispatchEvent(new Event('input'));
         if (callback) callback(char);
     },
 
@@ -85,6 +92,32 @@ var CharacterManager = {
         this.save();
     },
 };
+
+// ==========================================
+//  文字数カウンター
+// ==========================================
+
+/**
+ * input/textarea に文字数カウンターを接続する
+ * @param {string} inputId    入力要素の ID
+ * @param {string} counterId  カウンター表示要素の ID
+ * @param {number} maxLen     最大文字数
+ */
+function setupCharCounter(inputId, counterId, maxLen) {
+    var input = document.getElementById(inputId);
+    var counter = document.getElementById(counterId);
+    if (!input || !counter) return;
+
+    function update() {
+        var len = input.value.length;
+        counter.textContent = len + ' / ' + maxLen;
+        counter.classList.toggle('near-limit', len >= maxLen * 0.8 && len < maxLen);
+        counter.classList.toggle('at-limit', len >= maxLen);
+    }
+
+    input.addEventListener('input', update);
+    update();
+}
 
 // ==========================================
 //  キャラクターリスト描画 (共通)
